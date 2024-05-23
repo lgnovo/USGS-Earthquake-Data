@@ -8,3 +8,22 @@ body,
 html {
   height: 100%;
 }
+
+/* Legend box styling */
+.legend-box {
+  border: 1px solid #ccc;
+  background-color: white;
+  padding: 10px;
+  width: 60px
+}
+/* Color indicators */
+.legend-item i {
+  display: inline-block;
+  width: 10px; /* Adjust width as needed */
+  height: 10px; /* Adjust height as needed */
+  margin-right: 5px; /* Adjust spacing between color indicator and text */
+}
+
+.legend-item {
+  margin-bottom: 5px;
+}

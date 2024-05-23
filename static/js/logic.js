@@ -1,68 +1,99 @@
-// Creating the map object
+//store the URL for the GeoJSON data
+const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson';
+
+// Create a map object.
 let myMap = L.map("map", {
-    center: [27.96044, -82.30695],
-    zoom: 3,
-});
+    center: [37.09, -95.71],
+    zoom: 5
+  });
+  
+  // Add a tile layer.
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(myMap);
 
-// Adding the OpenStreetMap tile layer (default)
-let openStreetMapLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-}).addTo(myMap);
 
-// Adding the OpenTopoMap tile layer
-let openTopoMapLayer = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
-    attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
-});
+// Retrieve and add the earthquake data to the map
+d3.json(url).then(function (data) {
+  // Establish colors for depth
+  function mapColor(depth) {
+      switch (true) {
+          case depth > 90:
+              return "red";
+          case depth > 70:
+              return "orange";
+          case depth > 50:
+              return "gold";
+          case depth > 30:
+              return "yellow";
+          case depth > 10:
+              return "lime";
+          default:
+              return "palegreen";
+      }
+  }
 
-// Load the GeoJSON earthquake data
-let geoData = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson";
+  // Establish magnitude size
+  function mapRadius(mag) {
+      if (mag === 0) {
+          return 1;
+      }
+      return mag * 4;
+  }
 
-// Define base layers
-let baseLayers = {
-    "OpenStreetMap": openStreetMapLayer,
-    "OpenTopoMap": openTopoMapLayer,
-    "Satellite": L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-        attribution: "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
-    }),
-};
+  function mapStyle(feature) {
+      return {
+          opacity: 1,
+          fillOpacity: 1,
+          fillColor: mapColor(feature.geometry.coordinates[2]),
+          color: "black",
+          radius: mapRadius(feature.properties.mag),
+          stroke: true,
+          weight: 0.5
+      };
+  }
 
-// Create a layer group for overlays
-let overlayLayers = {
-    "Tectonic Plates": L.geoJSON(),
-    "Earthquakes": L.geoJSON(),
-};
+  // Add earthquake data to the map
+  L.geoJson(data, {
+      pointToLayer: function (feature, latlng) {
+          return L.circleMarker(latlng);
+      },
+      style: mapStyle,
+      // Activate pop-up data when circles are clicked
+      onEachFeature: function (feature, layer) {
+          layer.bindPopup("Magnitude: " + feature.properties.mag + "<br>Location: " + feature.properties.place + "<br>Depth: " + feature.geometry.coordinates[2]);
+      }
+  }).addTo(myMap);
 
-// Add tectonic plate boundaries data to the overlays
-$.getJSON(plateBoundariesURL, function (plateBoundaries) {
-    overlayLayers["Tectonic Plates"].addData(plateBoundaries);
-});
-
-// Load the GeoJSON earthquake data and add it to the overlays
-d3.json(geoData).then(function (data) {
-    overlayLayers["Earthquakes"].addData(data);
-});
-
-// Add control layer
-L.control.layers(baseLayers, overlayLayers).addTo(myMap);
-
-// Add legend
-let legend = L.control({ position: "bottomleft" });
-legend.onAdd = function () {
-    let div = L.DomUtil.create("div", "info legend");
-    let magnitudes = [-10, 10, 30, 50, 70, 90];
-    let colors = ["green", "yellowgreen", "yellow", "orange", "orangered", "red"];
-
-    div.innerHTML = "<strong>Magnitude</strong><br>";
-    for (let i = 0; i < magnitudes.length; i++) {
-        div.innerHTML +=
-            '<i style="background:' +
-            colors[i] +
-            '">&nbsp;&nbsp;&nbsp;</i> ' +
-            magnitudes[i] +
-            (magnitudes[i + 1] ? "&ndash;" + magnitudes[i + 1] + "<br>" : "+");
+  var legend = L.control({ position: "bottomright" });
+  legend.onAdd = function () {
+    var div = L.DomUtil.create("div", "info legend"),
+      depth = [-10, 10, 30, 50, 70, 90];
+    let colors = ["palegreen", "lime", "yellow", "gold", "orange", "red"];
+  
+    // Create a box for the legend
+    div.innerHTML = '<h4>Depth Interval Indicator</h4>';
+    var legendBox = '<div class="legend-box">';
+  
+    // Add legend items with colors
+    for (var i = 0; i < depth.length; i++) {
+      legendBox +=
+        '<div class="legend-item"><i style="background:' +
+        colors[i] +
+        '"></i> ' +
+        depth[i] +
+        (depth[i + 1] ? "&ndash;" + depth[i + 1] + "<br>" : "+") +
+        "</div>";
     }
-
+  
+    // Close the legend box
+    legendBox += '</div>';
+  
+    // Append the legend box to the div
+    div.innerHTML = legendBox;
+  
     return div;
-};
-
+  };
+  
 legend.addTo(myMap);
+});
